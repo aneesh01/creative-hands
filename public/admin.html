@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Events admin — Creative Hands</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..800,100&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bisque:#fbf5ea;--bisque-2:#f3e8d6;--ink:#2a1640;--plum:#3a1a5c;--plum-2:#5b2d8a;--marigold:#f5b83d;--coral:#ee5a6f;--teal:#149c95;--line:rgba(42,22,64,.16);--display:"Fraunces",Georgia,serif;--body:"Figtree",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bisque);color:var(--ink);font:400 16px/1.5 var(--body);padding-bottom:110px}
+h1,h2{font-family:var(--display);font-variation-settings:"SOFT" 100;letter-spacing:-.02em;line-height:1.1;margin:0}
+h1{font-size:clamp(1.8rem,4vw,2.5rem)}h2{font-size:1.4rem}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+header{padding:28px 0 22px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+header a{margin-left:auto;font-weight:600;color:var(--plum-2)}
+.mode{font:700 .72rem/1 var(--body);letter-spacing:.12em;text-transform:uppercase;padding:8px 12px;border-radius:99px;border:2px solid var(--ink);background:#fff}
+.mode.live{background:#c9efd3}.mode.file{background:#ffe7a8}
+.cols{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:22px;align-items:start}
+@media(max-width:820px){.cols{grid-template-columns:1fr}}
+.card{background:#fff;border:2px solid var(--ink);border-radius:24px;padding:24px}
+label{display:block;font-weight:600;font-size:.9rem;margin:16px 0 6px}
+label small{font-weight:400;color:rgba(42,22,64,.7)}
+input[type=text],input[type=date],input[type=time],input[type=password],textarea{width:100%;font:inherit;color:inherit;padding:11px 12px;border:2px solid var(--line);border-radius:12px;background:var(--bisque)}
+input:focus,textarea:focus{outline:none;border-color:var(--plum-2);background:#fff}
+textarea{min-height:92px;resize:vertical}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.row>div,form{min-width:0}input{min-width:0;max-width:100%}
+@media(max-width:420px){.row{grid-template-columns:minmax(0,1fr)}.card{padding:18px}}
+.check{display:flex;align-items:center;gap:10px;margin-top:18px;font-weight:600}
+.check input{width:20px;height:20px;accent-color:var(--plum)}
+.btn{font:700 .95rem/1 var(--body);padding:13px 20px;border-radius:99px;border:2px solid var(--ink);background:var(--ink);color:var(--bisque);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.sm{padding:9px 14px;font-size:.85rem}
+.btn.danger{background:var(--coral);border-color:var(--ink);color:#fff}
+.btn.sun{background:var(--marigold);color:var(--ink)}
+.btn:focus-visible,a:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.err{color:#b3261e;font-weight:600;font-size:.9rem;margin:12px 0 0;min-height:1.2em}
+ul{list-style:none;margin:16px 0 0;padding:0}
+li{display:flex;gap:14px;align-items:center;padding:14px 0;border-top:1px dashed var(--line)}
+li>div{min-width:0;flex:1}
+li .t{font-weight:700}
+li .w{font-size:.88rem;color:rgba(42,22,64,.75)}
+li .tag{display:inline-block;font:700 .66rem/1 var(--body);letter-spacing:.1em;text-transform:uppercase;background:var(--bisque-2);border-radius:99px;padding:5px 8px;margin-left:6px;vertical-align:middle}
+li.past{opacity:.55}
+li .b{display:flex;gap:6px;flex:none}
+.empty{color:rgba(42,22,64,.7);margin:16px 0 0}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--plum);color:var(--bisque);padding:14px 0;border-top:2px solid var(--ink)}
+.bar .wrap{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.bar p{margin:0;flex:1;min-width:200px;font-weight:500}
+.bar input{width:210px;background:#fff}
+.bar[hidden]{display:none}
+.signin{max-width:440px;margin:6vh auto 0}
+.signin p{margin:8px 0 0;color:rgba(42,22,64,.75)}
+.signin .btn{width:100%;margin-top:18px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Events admin</h1>
+    <span class="mode" id="mode">Loading…</span>
+    <a href="./#events">View the calendar →</a>
+    <button class="btn ghost sm" type="button" id="signout" hidden>Sign out</button>
+  </header>
+
+  <form class="card signin" id="signin" novalidate hidden>
+    <h2>Sign in</h2>
+    <p>Enter the admin passphrase to add, change or remove events.</p>
+    <label for="pass">Passphrase</label>
+    <input type="password" id="pass" autocomplete="current-password" required>
+    <p class="err" id="signinErr" role="alert"></p>
+    <button class="btn" type="submit" id="signinBtn">Sign in</button>
+  </form>
+
+  <div class="cols" id="editor" hidden>
+    <form class="card" id="form" novalidate>
+      <h2 id="formTitle">Add an event</h2>
+      <label for="title">Title</label>
+      <input type="text" id="title" maxlength="120" autocomplete="off">
+      <div class="row">
+        <div><label for="date">Date</label><input type="date" id="date"></div>
+        <div><label for="until">Repeat until <small>(optional)</small></label><input type="date" id="until" disabled></div>
+      </div>
+      <div class="row">
+        <div><label for="start">Starts <small>(blank = all day)</small></label><input type="time" id="start"></div>
+        <div><label for="end">Ends</label><input type="time" id="end"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="weekly"> Repeats every week</label>
+      <label for="desc">Description <small>(optional)</small></label>
+      <textarea id="desc" maxlength="600"></textarea>
+      <p class="err" id="err" role="alert"></p>
+      <div class="actions">
+        <button class="btn" type="submit" id="save">Add event</button>
+        <button class="btn ghost" type="button" id="cancel" hidden>Cancel</button>
+      </div>
+    </form>
+
+    <div class="card">
+      <h2>Events <span id="count"></span></h2>
+      <p class="empty" id="empty" hidden>No events yet. Add the first one with the form.</p>
+      <ul id="list"></ul>
+    </div>
+  </div>
+</div>
+
+<div class="bar" id="bar" hidden>
+  <div class="wrap">
+    <p id="barMsg" role="status"></p>
+    <button class="btn sun" type="button" id="publish">Publish changes</button>
+    <button class="btn ghost" type="button" id="download" style="color:var(--bisque);border-color:var(--bisque)">Download events.json</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var el=function(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+  var S={events:[],live:false,writable:false,dirty:false,editing:null};
+  var today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date());
+
+  function t12(t){var p=t.split(':'),h=+p[0];return(h%12||12)+(p[1]!=='00'?':'+p[1]:'')+(h<12?' AM':' PM')}
+  function when(ev){return ev.start?t12(ev.start)+(ev.end?' – '+t12(ev.end):''):'All day'}
+  function dstr(s){var p=s.split('-');return new Date(Date.UTC(+p[0],p[1]-1,+p[2])).toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'})}
+  function isOver(ev){return ev.repeat==='weekly'?(ev.until&&ev.until<today):ev.date<today}
+
+  function render(){
+    var list=$('list');list.textContent='';
+    S.events.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0}).forEach(function(ev){
+      var li=el('li',isOver(ev)?'past':''),d=el('div'),t=el('div','t',ev.title),b=el('div','b');
+      if(ev.repeat==='weekly')t.appendChild(el('span','tag','Weekly'));
+      if(isOver(ev))t.appendChild(el('span','tag','Past'));
+      d.appendChild(t);
+      d.appendChild(el('div','w',(ev.repeat==='weekly'?'From ':'')+dstr(ev.date)+(ev.repeat==='weekly'&&ev.until?' until '+dstr(ev.until):'')+' · '+when(ev)));
+      var e=el('button','btn ghost sm','Edit');e.type='button';e.addEventListener('click',function(){edit(ev.id)});
+      var x=el('button','btn ghost sm','Delete');x.type='button';
+      x.addEventListener('click',function(){ // two-step delete, no browser dialog
+        if(x.dataset.armed){S.events=S.events.filter(function(o){return o.id!==ev.id});if(S.editing===ev.id)reset();changed();return}
+        x.dataset.armed='1';x.textContent='Confirm delete';x.className='btn danger sm';
+        setTimeout(function(){delete x.dataset.armed;x.textContent='Delete';x.className='btn ghost sm'},4000);
+      });
+      b.appendChild(e);b.appendChild(x);li.appendChild(d);li.appendChild(b);list.appendChild(li);
+    });
+    $('count').textContent='('+S.events.length+')';
+    $('empty').hidden=S.events.length>0;
+    $('bar').hidden=!S.dirty;
+    var canSave=S.live&&S.writable;
+    $('publish').hidden=!canSave;$('download').hidden=canSave;
+    if(S.dirty)$('barMsg').textContent=canSave?'You have unpublished changes.':'You have unsaved changes. Download the file, replace events.json in the site folder, and redeploy.';
+  }
+  function changed(){S.dirty=true;render()}
+  function reset(){
+    S.editing=null;$('form').reset();$('until').disabled=true;$('err').textContent='';
+    $('formTitle').textContent='Add an event';$('save').textContent='Add event';$('cancel').hidden=true;
+  }
+  function edit(id){
+    var ev=S.events.filter(function(o){return o.id===id})[0];if(!ev)return;
+    S.editing=id;$('title').value=ev.title;$('date').value=ev.date;$('start').value=ev.start||'';$('end').value=ev.end||'';
+    $('weekly').checked=ev.repeat==='weekly';$('until').disabled=ev.repeat!=='weekly';$('until').value=ev.until||'';$('desc').value=ev.desc||'';
+    $('formTitle').textContent='Edit event';$('save').textContent='Save changes';$('cancel').hidden=false;$('err').textContent='';
+    $('title').focus();
+  }
+  $('weekly').addEventListener('change',function(){$('until').disabled=!this.checked;if(!this.checked)$('until').value=''});
+  $('cancel').addEventListener('click',reset);
+  $('form').addEventListener('submit',function(e){
+    e.preventDefault();
+    var ev={title:$('title').value.trim(),date:$('date').value,start:$('start').value,end:$('end').value,
+            repeat:$('weekly').checked?'weekly':'none',until:$('weekly').checked?$('until').value:'',desc:$('desc').value.trim()};
+    var msg=!ev.title?'Give the event a title.':!ev.date?'Pick a date.':(ev.end&&!ev.start)?'Add a start time, or clear the end time.':
+            (ev.start&&ev.end&&ev.end<=ev.start)?'The end time must be after the start time.':(ev.until&&ev.until<ev.date)?'“Repeat until” must be on or after the first date.':'';
+    $('err').textContent=msg;if(msg)return;
+    if(S.editing){ev.id=S.editing;S.events=S.events.map(function(o){return o.id===ev.id?ev:o})}
+    else{ev.id=(ev.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'event')+'-'+Date.now().toString(36);S.events.push(ev)}
+    reset();changed();
+  });
+
+  $('download').addEventListener('click',function(){
+    var a=el('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S.events,null,2)+'\n'],{type:'application/json'}));
+    a.download='events.json';document.body.appendChild(a);a.click();a.remove();
+  });
+  function call(method,url,body){
+    var o={method:method,credentials:'same-origin',headers:{accept:'application/json'}};
+    if(body!==undefined){o.headers['content-type']='application/json';o.body=JSON.stringify(body)}
+    return fetch(url,o).then(function(r){return r.json().catch(function(){return{}}).then(function(j){return{status:r.status,ok:r.ok,j:j}})});
+  }
+  function show(view){ // 'signin' or 'editor'
+    $('signin').hidden=view!=='signin';$('editor').hidden=view!=='editor';
+    $('signout').hidden=!(view==='editor'&&S.live&&S.writable);
+    if(view==='signin'){$('bar').hidden=true;$('pass').value='';$('pass').focus()}else render();
+  }
+
+  $('signin').addEventListener('submit',function(e){
+    e.preventDefault();
+    var p=$('pass').value;if(!p){$('signinErr').textContent='Enter the passphrase.';return}
+    $('signinBtn').disabled=true;$('signinErr').textContent='';
+    call('POST','/api/session',{passphrase:p})
+      .then(function(r){if(!r.ok)throw new Error(r.j.error||'Could not sign in.');show('editor')})
+      .catch(function(err){$('signinErr').textContent=err.message||'Could not reach the site. Check your connection.';$('pass').value='';$('pass').focus()})
+      .then(function(){$('signinBtn').disabled=false});
+  });
+  $('signout').addEventListener('click',function(){
+    if(S.dirty&&$('signout').dataset.armed!=='1'){
+      $('signout').dataset.armed='1';$('signout').textContent='Discard changes & sign out';
+      setTimeout(function(){delete $('signout').dataset.armed;$('signout').textContent='Sign out'},4000);return;
+    }
+    call('DELETE','/api/session').then(function(){location.reload()},function(){location.reload()});
+    S.dirty=false;
+  });
+
+  $('publish').addEventListener('click',function(){
+    $('publish').disabled=true;$('barMsg').textContent='Publishing…';
+    call('PUT','/api/events',S.events)
+      .then(function(r){
+        if(r.status===401){$('signinErr').textContent='Your session ended. Sign in again — your changes are kept.';show('signin');return}
+        if(!r.ok)throw new Error(r.j.error||'Something went wrong.');
+        S.dirty=false;render();$('bar').hidden=false;$('barMsg').textContent='Published. The site now shows '+r.j.count+' event'+(r.j.count===1?'':'s')+'.';
+      })
+      .catch(function(e){$('barMsg').textContent='Not published: '+(e.message||'could not reach the site.')})
+      .then(function(){$('publish').disabled=false});
+  });
+  window.addEventListener('beforeunload',function(e){if(S.dirty){e.preventDefault();e.returnValue=''}});
+
+  fetch('/api/events',{headers:{accept:'application/json'},cache:'no-store'})
+    .then(function(r){if(!r.ok||!r.headers.get('x-events-api'))throw 0;S.live=true;S.writable=r.headers.get('x-events-writable')==='1';return r.json()})
+    .catch(function(){return fetch('events.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():[]})})
+    .catch(function(){return[]})
+    .then(function(list){
+      S.events=Array.isArray(list)?list:[];
+      var m=$('mode');
+      if(S.live&&S.writable){m.textContent='Live — publishes to the site';m.className='mode live'}
+      else{m.textContent=S.live?'Storage not set up — file mode':'File mode — download to save';m.className='mode file'}
+      if(!(S.live&&S.writable))return show('editor');
+      return call('GET','/api/session').then(function(r){show(r.ok?'editor':'signin')},function(){show('signin')});
+    });
+})();
+</script>
+</body>
+</html>
