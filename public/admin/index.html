@@ -54,9 +54,14 @@ li .b{display:flex;gap:6px;flex:none}
 .bar p{margin:0;flex:1;min-width:200px;font-weight:500}
 .bar input{width:210px;background:#fff}
 .bar[hidden]{display:none}
-.signin{max-width:440px;margin:6vh auto 0}
-.signin p{margin:8px 0 0;color:rgba(42,22,64,.75)}
-.signin .btn{width:100%;margin-top:18px}
+.who{font-size:.9rem;color:rgba(42,22,64,.75)}
+.who b{color:var(--ink)}
+header .links{margin-left:auto;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header .links a{margin-left:0}
+.history{margin-top:22px}
+.history li .w b{font-weight:600;color:var(--ink)}
+.history .now{display:inline-block;font:700 .66rem/1 var(--body);letter-spacing:.1em;text-transform:uppercase;background:#c9efd3;border-radius:99px;padding:5px 8px;margin-left:6px;vertical-align:middle}
+.notice{margin:0 0 18px;padding:14px 18px;border-radius:16px;border:2px solid var(--ink);background:#ffe7a8;font-weight:500}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -65,18 +70,14 @@ li .b{display:flex;gap:6px;flex:none}
   <header>
     <h1>Events admin</h1>
     <span class="mode" id="mode">Loading…</span>
-    <a href="./#events">View the calendar →</a>
-    <button class="btn ghost sm" type="button" id="signout" hidden>Sign out</button>
+    <span class="links">
+      <span class="who" id="who" hidden>Signed in as <b id="whoEmail"></b></span>
+      <a href="/#events">View the calendar →</a>
+      <a href="/cdn-cgi/access/logout" id="signout" hidden>Sign out</a>
+    </span>
   </header>
 
-  <form class="card signin" id="signin" novalidate hidden>
-    <h2>Sign in</h2>
-    <p>Enter the admin passphrase to add, change or remove events.</p>
-    <label for="pass">Passphrase</label>
-    <input type="password" id="pass" autocomplete="current-password" required>
-    <p class="err" id="signinErr" role="alert"></p>
-    <button class="btn" type="submit" id="signinBtn">Sign in</button>
-  </form>
+  <p class="notice" id="notice" role="alert" hidden></p>
 
   <div class="cols" id="editor" hidden>
     <form class="card" id="form" novalidate>
@@ -101,10 +102,18 @@ li .b{display:flex;gap:6px;flex:none}
       </div>
     </form>
 
-    <div class="card">
-      <h2>Events <span id="count"></span></h2>
-      <p class="empty" id="empty" hidden>No events yet. Add the first one with the form.</p>
-      <ul id="list"></ul>
+    <div>
+      <div class="card">
+        <h2>Events <span id="count"></span></h2>
+        <p class="empty" id="empty" hidden>No events yet. Add the first one with the form.</p>
+        <ul id="list"></ul>
+      </div>
+
+      <div class="card history" id="historyCard" hidden>
+        <h2>Change history</h2>
+        <p class="empty" id="historyEmpty">Nothing published yet. Each time you publish, the list is saved here so you can go back to it.</p>
+        <ul id="historyList"></ul>
+      </div>
     </div>
   </div>
 </div>
@@ -121,13 +130,31 @@ li .b{display:flex;gap:6px;flex:none}
 (function(){
   var $=function(id){return document.getElementById(id)};
   var el=function(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
-  var S={events:[],live:false,writable:false,dirty:false,editing:null};
+  // live = the admin API answered (signed in through Cloudflare Access); otherwise "file mode" (local preview)
+  var S={events:[],live:false,version:null,dirty:false,editing:null,busy:false};
   var today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date());
 
   function t12(t){var p=t.split(':'),h=+p[0];return(h%12||12)+(p[1]!=='00'?':'+p[1]:'')+(h<12?' AM':' PM')}
   function when(ev){return ev.start?t12(ev.start)+(ev.end?' – '+t12(ev.end):''):'All day'}
   function dstr(s){var p=s.split('-');return new Date(Date.UTC(+p[0],p[1]-1,+p[2])).toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'})}
+  function stamp(iso){return new Date(iso).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}
   function isOver(ev){return ev.repeat==='weekly'?(ev.until&&ev.until<today):ev.date<today}
+  function notice(msg){$('notice').textContent=msg||'';$('notice').hidden=!msg}
+
+  // Talk to the admin API. If Cloudflare Access sign-in has expired, the request is redirected
+  // to the sign-in page, which a script can't follow - we report that as "signed out".
+  function api(method,path,body){
+    var o={method:method,credentials:'same-origin',redirect:'manual',headers:{accept:'application/json'}};
+    if(body!==undefined){o.headers['content-type']='application/json';o.body=JSON.stringify(body)}
+    return fetch('/admin/api/'+path,o).then(function(r){
+      if(r.type==='opaqueredirect'||r.status===401)return{status:401,ok:false,j:{error:'Your sign-in has expired.'}};
+      return r.json().catch(function(){return{}}).then(function(j){return{status:r.status,ok:r.ok,j:j}});
+    });
+  }
+  function signedOut(){
+    notice('Your sign-in has expired. Use “Download events.json” to keep a copy of unpublished changes, then reload the page to sign in again.');
+    $('download').hidden=false;$('bar').hidden=!S.dirty;
+  }
 
   function render(){
     var list=$('list');list.textContent='';
@@ -139,19 +166,23 @@ li .b{display:flex;gap:6px;flex:none}
       d.appendChild(el('div','w',(ev.repeat==='weekly'?'From ':'')+dstr(ev.date)+(ev.repeat==='weekly'&&ev.until?' until '+dstr(ev.until):'')+' · '+when(ev)));
       var e=el('button','btn ghost sm','Edit');e.type='button';e.addEventListener('click',function(){edit(ev.id)});
       var x=el('button','btn ghost sm','Delete');x.type='button';
-      x.addEventListener('click',function(){ // two-step delete, no browser dialog
-        if(x.dataset.armed){S.events=S.events.filter(function(o){return o.id!==ev.id});if(S.editing===ev.id)reset();changed();return}
-        x.dataset.armed='1';x.textContent='Confirm delete';x.className='btn danger sm';
-        setTimeout(function(){delete x.dataset.armed;x.textContent='Delete';x.className='btn ghost sm'},4000);
-      });
+      armed(x,'Confirm delete',function(){S.events=S.events.filter(function(o){return o.id!==ev.id});if(S.editing===ev.id)reset();changed()});
       b.appendChild(e);b.appendChild(x);li.appendChild(d);li.appendChild(b);list.appendChild(li);
     });
     $('count').textContent='('+S.events.length+')';
     $('empty').hidden=S.events.length>0;
     $('bar').hidden=!S.dirty;
-    var canSave=S.live&&S.writable;
-    $('publish').hidden=!canSave;$('download').hidden=canSave;
-    if(S.dirty)$('barMsg').textContent=canSave?'You have unpublished changes.':'You have unsaved changes. Download the file, replace events.json in the site folder, and redeploy.';
+    $('publish').hidden=!(S.live&&S.dirty);$('download').hidden=S.live;
+    if(S.dirty)$('barMsg').textContent=S.live?'You have unpublished changes.':'You have unsaved changes. Download the file, replace events.json in the site folder, and redeploy.';
+  }
+  // Two-step button: first click arms it, second click within 4 seconds acts. No browser dialogs.
+  function armed(btn,label,act){
+    var orig=btn.textContent,cls=btn.className;
+    btn.addEventListener('click',function(){
+      if(btn.dataset.armed){act();return}
+      btn.dataset.armed='1';btn.textContent=typeof label==='function'?label():label;btn.className='btn danger sm';
+      setTimeout(function(){delete btn.dataset.armed;btn.textContent=orig;btn.className=cls},4000);
+    });
   }
   function changed(){S.dirty=true;render()}
   function reset(){
@@ -183,60 +214,78 @@ li .b{display:flex;gap:6px;flex:none}
     var a=el('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S.events,null,2)+'\n'],{type:'application/json'}));
     a.download='events.json';document.body.appendChild(a);a.click();a.remove();
   });
-  function call(method,url,body){
-    var o={method:method,credentials:'same-origin',headers:{accept:'application/json'}};
-    if(body!==undefined){o.headers['content-type']='application/json';o.body=JSON.stringify(body)}
-    return fetch(url,o).then(function(r){return r.json().catch(function(){return{}}).then(function(j){return{status:r.status,ok:r.ok,j:j}})});
-  }
-  function show(view){ // 'signin' or 'editor'
-    $('signin').hidden=view!=='signin';$('editor').hidden=view!=='editor';
-    $('signout').hidden=!(view==='editor'&&S.live&&S.writable);
-    if(view==='signin'){$('bar').hidden=true;$('pass').value='';$('pass').focus()}else render();
-  }
-
-  $('signin').addEventListener('submit',function(e){
-    e.preventDefault();
-    var p=$('pass').value;if(!p){$('signinErr').textContent='Enter the passphrase.';return}
-    $('signinBtn').disabled=true;$('signinErr').textContent='';
-    call('POST','/api/session',{passphrase:p})
-      .then(function(r){if(!r.ok)throw new Error(r.j.error||'Could not sign in.');show('editor')})
-      .catch(function(err){$('signinErr').textContent=err.message||'Could not reach the site. Check your connection.';$('pass').value='';$('pass').focus()})
-      .then(function(){$('signinBtn').disabled=false});
-  });
-  $('signout').addEventListener('click',function(){
-    if(S.dirty&&$('signout').dataset.armed!=='1'){
-      $('signout').dataset.armed='1';$('signout').textContent='Discard changes & sign out';
-      setTimeout(function(){delete $('signout').dataset.armed;$('signout').textContent='Sign out'},4000);return;
-    }
-    call('DELETE','/api/session').then(function(){location.reload()},function(){location.reload()});
-    S.dirty=false;
-  });
 
   $('publish').addEventListener('click',function(){
+    if(S.busy)return;S.busy=true;
     $('publish').disabled=true;$('barMsg').textContent='Publishing…';
-    call('PUT','/api/events',S.events)
+    api('PUT','events',{events:S.events,baseVersion:S.version})
       .then(function(r){
-        if(r.status===401){$('signinErr').textContent='Your session ended. Sign in again — your changes are kept.';show('signin');return}
+        if(r.status===401)return signedOut();
         if(!r.ok)throw new Error(r.j.error||'Something went wrong.');
-        S.dirty=false;render();$('bar').hidden=false;$('barMsg').textContent='Published. The site now shows '+r.j.count+' event'+(r.j.count===1?'':'s')+'.';
+        S.dirty=false;S.version=r.j.version;render();
+        $('bar').hidden=false;$('barMsg').textContent='Published. The site now shows '+r.j.count+' event'+(r.j.count===1?'':'s')+'.';
+        loadHistory();
       })
       .catch(function(e){$('barMsg').textContent='Not published: '+(e.message||'could not reach the site.')})
-      .then(function(){$('publish').disabled=false});
+      .then(function(){$('publish').disabled=false;S.busy=false});
   });
   window.addEventListener('beforeunload',function(e){if(S.dirty){e.preventDefault();e.returnValue=''}});
 
-  fetch('/api/events',{headers:{accept:'application/json'},cache:'no-store'})
-    .then(function(r){if(!r.ok||!r.headers.get('x-events-api'))throw 0;S.live=true;S.writable=r.headers.get('x-events-writable')==='1';return r.json()})
-    .catch(function(){return fetch('events.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():[]})})
-    .catch(function(){return[]})
-    .then(function(list){
-      S.events=Array.isArray(list)?list:[];
-      var m=$('mode');
-      if(S.live&&S.writable){m.textContent='Live — publishes to the site';m.className='mode live'}
-      else{m.textContent=S.live?'Storage not set up — file mode':'File mode — download to save';m.className='mode file'}
-      if(!(S.live&&S.writable))return show('editor');
-      return call('GET','/api/session').then(function(r){show(r.ok?'editor':'signin')},function(){show('signin')});
+  function loadHistory(){
+    return api('GET','history').then(function(r){
+      if(!r.ok)return;
+      var ul=$('historyList');ul.textContent='';
+      var v=r.j.versions||[];$('historyEmpty').hidden=v.length>0;
+      v.forEach(function(h,i){
+        var li=el('li'),d=el('div'),t=el('div','t',i===0?'Current list':stamp(h.at));
+        if(i===0)t.appendChild(el('span','now','Live'));
+        d.appendChild(t);
+        var w=el('div','w');
+        if(i===0)w.appendChild(document.createTextNode(stamp(h.at)+' · '));
+        w.appendChild(document.createTextNode((h.note||'Published')+' · '+h.count+' event'+(h.count===1?'':'s')));
+        if(h.by){w.appendChild(document.createTextNode(' · by '));w.appendChild(el('b',null,h.by))}
+        d.appendChild(w);li.appendChild(d);
+        if(i>0){
+          var b=el('div','b'),x=el('button','btn ghost sm','Restore');x.type='button';
+          armed(x,function(){return S.dirty?'Discard edits & restore':'Confirm restore'},function(){restore(h.id)});
+          b.appendChild(x);li.appendChild(b);
+        }
+        ul.appendChild(li);
+      });
     });
+  }
+  function restore(id){
+    if(S.busy)return;S.busy=true;notice('');
+    api('POST','restore',{id:id,baseVersion:S.version})
+      .then(function(r){
+        if(r.status===401)return signedOut();
+        if(!r.ok)throw new Error(r.j.error||'Something went wrong.');
+        return load().then(function(){$('bar').hidden=false;$('barMsg').textContent='Restored. The site now shows '+r.j.count+' event'+(r.j.count===1?'':'s')+'.'});
+      })
+      .catch(function(e){notice('Not restored: '+(e.message||'could not reach the site.'))})
+      .then(function(){S.busy=false});
+  }
+
+  function load(){
+    return api('GET','events').then(function(r){
+      if(r.status===401){notice('You are not signed in. Reload the page to sign in.');return}
+      if(!r.ok)throw 0;
+      S.live=true;S.events=Array.isArray(r.j.events)?r.j.events:[];S.version=r.j.version;S.dirty=false;reset();
+      $('whoEmail').textContent=r.j.user||'';$('who').hidden=!r.j.user;$('signout').hidden=false;
+      $('mode').textContent='Live — publishes to the site';$('mode').className='mode live';
+      $('historyCard').hidden=false;$('editor').hidden=false;render();
+      return loadHistory();
+    });
+  }
+
+  load().catch(function(){
+    // No admin API (e.g. a plain local preview): edit a copy of events.json and download it.
+    return fetch('/events.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():[]}).catch(function(){return[]}).then(function(list){
+      S.live=false;S.events=Array.isArray(list)?list:[];
+      $('mode').textContent='File mode — download to save';$('mode').className='mode file';
+      $('editor').hidden=false;render();
+    });
+  });
 })();
 </script>
 </body>
