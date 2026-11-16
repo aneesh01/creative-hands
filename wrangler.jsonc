@@ -20,7 +20,7 @@
     // Cloudflare Access protects /admin. These let the Worker check the sign-in itself.
     // Not secrets: Zero Trust -> Access -> Applications -> (the admin app) -> "Application Audience (AUD) Tag".
     "ACCESS_TEAM_DOMAIN": "https://aneesh-aravind.cloudflareaccess.com",
-    "ACCESS_AUD": "PRODUCTION_ADMIN_AUD"
+    "ACCESS_AUD": "b3926f70f2185112fd6bdd134139832bb4837c8896b6dd4c1c96b04c1c724e9b"
   },
   "observability": { "enabled": true },
 
