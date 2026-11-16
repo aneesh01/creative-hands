@@ -16,20 +16,30 @@
     // id: Storage & Databases -> KV -> your namespace (not a secret).
     { "binding": "EVENTS", "id": "df6ed663ddaf462b9f834d05183acdb9" }
   ],
+  "vars": {
+    // Cloudflare Access protects /admin. These let the Worker check the sign-in itself.
+    // Not secrets: Zero Trust -> Access -> Applications -> (the admin app) -> "Application Audience (AUD) Tag".
+    "ACCESS_TEAM_DOMAIN": "https://aneesh-aravind.cloudflareaccess.com",
+    "ACCESS_AUD": "b3926f70f2185112fd6bdd134139832bb4837c8896b6dd4c1c96b04c1c724e9b"
+  },
   "observability": { "enabled": true },
 
   "env": {
-    // ---- Staging: branch `staging` -> Worker `creative-hands-staging`
+    // ---- Staging: branch `staging` -> Worker `creative-hands-staging` -> staging.creativehandsceramics.com
     // Deploy command in Cloudflare: npx wrangler deploy --env staging
-    // Uses its own event storage and its own ADMIN_KEY, so testing never touches the live calendar.
+    // Uses its own event storage, so testing never touches the live calendar.
     "staging": {
       "name": "creative-hands-staging",
       "kv_namespaces": [
         { "binding": "EVENTS", "id": "9d24e831bf8e4ae9b6d800cdee49032a" }
-      ]
+      ],
+      "vars": {
+        // The whole staging site sits behind the Worker's own Access policy.
+        "ACCESS_TEAM_DOMAIN": "https://aneesh-aravind.cloudflareaccess.com",
+        "ACCESS_AUD": "44df9215d8f8b59f4e7fa2211ce9f34b15ee40387f56bb8c182671ac8e0fe2e0"
+      }
     }
   }
 
-  // ADMIN_KEY is a secret: set it on each Worker in the dashboard
-  // (Settings -> Variables and Secrets), never in this file.
+  // No secrets live in this file. For local testing, put DEV_ADMIN_EMAIL in .dev.vars (see README).
 }
