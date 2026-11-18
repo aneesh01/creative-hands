@@ -26,7 +26,7 @@
     "ACCESS_AUD": "b3926f70f2185112fd6bdd134139832bb4837c8896b6dd4c1c96b04c1c724e9b",
     // Google Analytics 4 "Measurement ID" (G-...). Not a secret. Production only, so staging
     // and local testing never count as real visits. Empty = no Google Analytics.
-    "GA_MEASUREMENT_ID": ""
+    "GA_MEASUREMENT_ID": "G-1H0Y1PNKNY"
   },
   "observability": { "enabled": true },
 
