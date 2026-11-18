@@ -9,6 +9,7 @@
 <meta property="og:description" content="No studio fees. We have the smocks, paints and brushes — just bring your imagination.">
 <meta property="og:image" content="https://www.creativehandsceramics.com/img/hero.webp">
 <meta name="theme-color" content="#3a1a5c">
+<link rel="canonical" href="https://www.creativehandsceramics.com/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..800,100&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -301,6 +302,9 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:24px 48px;justify-content:space-bet
 footer .logo{color:var(--bisque);font-size:2rem}
 footer p{margin:6px 0 0;opacity:.8;font-size:.95rem}
 footer a{font-weight:600}
+footer .small{flex-basis:100%;font-size:.85rem}
+.gbp{margin:14px 0 0;font-weight:600}
+.gbp[hidden]{display:none}
 
 /* mobile action bar */
 .dock{position:fixed;left:12px;right:12px;bottom:12px;z-index:60;display:none;grid-template-columns:1fr 1fr;gap:8px;background:var(--ink);padding:8px;border-radius:99px;box-shadow:0 12px 30px -8px rgba(0,0,0,.5)}
@@ -592,6 +596,8 @@ footer a{font-weight:600}
         <a class="btn" href="https://www.google.com/maps/search/?api=1&query=Creative+Hands+2225+W+Park+Row+Pantego+TX+76013" target="_blank" rel="noopener">Get directions</a>
         <a class="btn ghost" href="tel:+18176952677">817-695-2677</a>
       </div>
+      <!-- Google Business Profile: fill in both links, then remove "hidden". -->
+      <p class="gbp" hidden><a data-gbp="profile" href="" target="_blank" rel="noopener">Find us on Google</a> · <a data-gbp="review" href="" target="_blank" rel="noopener">Leave us a review</a></p>
     </div>
   </div>
 </section>
@@ -620,6 +626,7 @@ footer a{font-weight:600}
       <p>Paint-your-own ceramics &amp; plaster · Pantego, Texas</p>
     </div>
     <p>2225 W Park Row, Suite G, Pantego, TX 76013 · <a href="tel:+18176952677">817-695-2677</a><br>Wed–Sun · Closed Monday &amp; Tuesday</p>
+    <p class="small"><span class="gbp" hidden><a data-gbp="review" href="" target="_blank" rel="noopener">Review us on Google</a> · </span><a href="/privacy/">Privacy</a></p>
   </div>
 </footer>
 
@@ -776,6 +783,32 @@ footer a{font-weight:600}
     document.getElementById('sub').innerHTML=n+' guests × $'+p.price+' · $'+p.dep+' deposit to book<br>Estimate before tax. Bigger group? Just ask.';
   }
   form.addEventListener('input',draw);draw();
+})();
+</script>
+<script>
+/* Visitor actions for Google Analytics. Does nothing unless GA is loaded (production only). */
+(function(){
+  function send(name,params){if(typeof window.gtag==='function')window.gtag('event',name,params||{})}
+  function where(a){if(a.closest('.dock'))return'phone_bar';if(a.closest('header'))return'header';if(a.closest('footer'))return'footer';var s=a.closest('section');return s?(s.id||s.className.split(' ')[0]||'page'):'page'}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest&&e.target.closest('a');if(!a)return;
+    var h=a.getAttribute('href')||'',p={link_location:where(a)};
+    if(a.id==='next')send('event_banner_click',{event_title:(a.querySelector('.nt')||{}).textContent||''});
+    else if(h.indexOf('tel:')===0)send('click_call',p);
+    else if(/google\.com\/maps/.test(h))send('get_directions',p);
+    else if(/squareup\.com\/gift/.test(h))send('gift_card_click',p);
+    else if(/squareup\.com\/outreach/.test(h))send('email_signup_click',p);
+    else if(a.dataset.gbp==='review')send('review_click',p);
+    else if(a.dataset.gbp==='profile')send('google_profile_click',p);
+  });
+  var est=document.getElementById('est'),sent=false,t;
+  if(est)est.addEventListener('input',function(){
+    if(sent)return;clearTimeout(t);
+    t=setTimeout(function(){
+      var pk=est.querySelector('input[name="p"]:checked'),g=document.getElementById('g');
+      sent=true;send('birthday_estimate',{package:pk?pk.value:'',guests:g?+g.value:0});
+    },1500);
+  });
 })();
 </script>
 </body>

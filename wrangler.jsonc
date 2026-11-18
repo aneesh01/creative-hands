@@ -10,7 +10,10 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "not_found_handling": "404-page"
+    "not_found_handling": "404-page",
+    // Paths the Worker must handle before static files: the home page (adds analytics and event
+    // data, src/home.js), the events API, the admin API, and the old admin address redirect.
+    "run_worker_first": ["/", "/index.html", "/api/*", "/admin/api/*", "/admin.html"]
   },
   "kv_namespaces": [
     // id: Storage & Databases -> KV -> your namespace (not a secret).
@@ -20,7 +23,10 @@
     // Cloudflare Access protects /admin. These let the Worker check the sign-in itself.
     // Not secrets: Zero Trust -> Access -> Applications -> (the admin app) -> "Application Audience (AUD) Tag".
     "ACCESS_TEAM_DOMAIN": "https://aneesh-aravind.cloudflareaccess.com",
-    "ACCESS_AUD": "b3926f70f2185112fd6bdd134139832bb4837c8896b6dd4c1c96b04c1c724e9b"
+    "ACCESS_AUD": "b3926f70f2185112fd6bdd134139832bb4837c8896b6dd4c1c96b04c1c724e9b",
+    // Google Analytics 4 "Measurement ID" (G-...). Not a secret. Production only, so staging
+    // and local testing never count as real visits. Empty = no Google Analytics.
+    "GA_MEASUREMENT_ID": ""
   },
   "observability": { "enabled": true },
 
@@ -36,7 +42,9 @@
       "vars": {
         // The whole staging site sits behind the Worker's own Access policy.
         "ACCESS_TEAM_DOMAIN": "https://aneesh-aravind.cloudflareaccess.com",
-        "ACCESS_AUD": "44df9215d8f8b59f4e7fa2211ce9f34b15ee40387f56bb8c182671ac8e0fe2e0"
+        "ACCESS_AUD": "44df9215d8f8b59f4e7fa2211ce9f34b15ee40387f56bb8c182671ac8e0fe2e0",
+        // Never send staging visits to Google Analytics.
+        "GA_MEASUREMENT_ID": ""
       }
     }
   }
