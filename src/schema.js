@@ -1,6 +1,6 @@
 // Builds schema.org Event data for upcoming events, so Google can understand
 // (and may list) the studio's events. Mirrors the calendar logic in public/index.html:
-// weekly events repeat until their "until" date; times are studio (America/Chicago) time.
+// weekly and monthly events repeat until their "until" date; times are studio (America/Chicago) time.
 
 const TZ = 'America/Chicago';
 const SITE = 'https://www.creativehandsceramics.com';
@@ -51,17 +51,35 @@ export function chicagoOffset(date, time) {
 
 const stamp = (date, time) => (time ? `${date}T${time}:00${chicagoOffset(date, time)}` : date);
 
+// The day (UTC ms) a monthly event falls on in month m (0-based, may overflow) of year y,
+// or null when that month has no such day (e.g. the 31st in a 30-day month).
+function monthlyDay(repeat, s, y, m) {
+  const first = new Date(s), day = first.getUTCDate(), w = first.getUTCDay();
+  const len = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  let k;
+  if (repeat === 'monthly-date') k = day;
+  else if (repeat === 'monthly-last') k = len - ((new Date(Date.UTC(y, m, len)).getUTCDay() - w + 7) % 7);
+  else k = 1 + ((w - new Date(Date.UTC(y, m, 1)).getUTCDay() + 7) % 7) + (Math.ceil(day / 7) - 1) * 7;
+  return k <= len ? Date.UTC(y, m, k) : null;
+}
+
 // Every occurrence between two dates (inclusive), sorted - same rules as the site calendar.
 export function occurrences(events, from, to) {
   const out = [], a = toUTC(from), b = toUTC(to), W = 7 * DAY;
   for (const ev of Array.isArray(events) ? events : []) {
     if (!ev || !DATE.test(ev.date || '')) continue;
     const s = toUTC(ev.date);
+    const end = DATE.test(ev.until || '') ? Math.min(b, toUTC(ev.until)) : b;
     if (ev.repeat === 'weekly') {
-      const end = DATE.test(ev.until || '') ? Math.min(b, toUTC(ev.until)) : b;
       let t = s;
       if (t < a) t += Math.ceil((a - t) / W) * W;
       for (; t <= end; t += W) out.push({ ev, date: fromUTC(t) });
+    } else if (/^monthly-(date|nth|last)$/.test(ev.repeat)) {
+      const f = new Date(Math.max(s, a));
+      for (let y = f.getUTCFullYear(), m = f.getUTCMonth(); Date.UTC(y, m, 1) <= end; m++) {
+        const t = monthlyDay(ev.repeat, s, y, m);
+        if (t !== null && t >= s && t >= a && t <= end) out.push({ ev, date: fromUTC(t) });
+      }
     } else if (s >= a && s <= b) out.push({ ev, date: ev.date });
   }
   return out.sort((x, y) => (x.date + (x.ev.start || '')).localeCompare(y.date + (y.ev.start || '')));
