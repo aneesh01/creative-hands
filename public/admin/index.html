@@ -24,8 +24,8 @@ header a{margin-left:auto;font-weight:600;color:var(--plum-2)}
 .card{background:#fff;border:2px solid var(--ink);border-radius:24px;padding:24px}
 label{display:block;font-weight:600;font-size:.9rem;margin:16px 0 6px}
 label small{font-weight:400;color:rgba(42,22,64,.7)}
-input[type=text],input[type=date],input[type=time],input[type=password],textarea{width:100%;font:inherit;color:inherit;padding:11px 12px;border:2px solid var(--line);border-radius:12px;background:var(--bisque)}
-input:focus,textarea:focus{outline:none;border-color:var(--plum-2);background:#fff}
+input[type=text],input[type=date],input[type=time],input[type=password],select,textarea{width:100%;font:inherit;color:inherit;padding:11px 12px;border:2px solid var(--line);border-radius:12px;background:var(--bisque)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--plum-2);background:#fff}
 textarea{min-height:92px;resize:vertical}
 .row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
 .row>div,form{min-width:0}input{min-width:0;max-width:100%}
@@ -92,7 +92,8 @@ header .links a{margin-left:0}
         <div><label for="start">Starts <small>(blank = all day)</small></label><input type="time" id="start"></div>
         <div><label for="end">Ends</label><input type="time" id="end"></div>
       </div>
-      <label class="check"><input type="checkbox" id="weekly"> Repeats every week</label>
+      <label for="repeat">Repeats</label>
+      <select id="repeat"><option value="none">Doesn’t repeat</option></select>
       <label for="desc">Description <small>(optional)</small></label>
       <textarea id="desc" maxlength="600"></textarea>
       <p class="err" id="err" role="alert"></p>
@@ -138,7 +139,30 @@ header .links a{margin-left:0}
   function when(ev){return ev.start?t12(ev.start)+(ev.end?' – '+t12(ev.end):''):'All day'}
   function dstr(s){var p=s.split('-');return new Date(Date.UTC(+p[0],p[1]-1,+p[2])).toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'})}
   function stamp(iso){return new Date(iso).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}
-  function isOver(ev){return ev.repeat==='weekly'?(ev.until&&ev.until<today):ev.date<today}
+  var WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],ORD=['1st','2nd','3rd','4th'];
+  function repeats(ev){return ev.repeat&&ev.repeat!=='none'}
+  function isOver(ev){return repeats(ev)?(ev.until&&ev.until<today):ev.date<today}
+  // The repeat choices that make sense for a first date, as [value, label] pairs.
+  function choices(date){
+    var c=[['none','Doesn’t repeat']];if(!date)return c;
+    var p=date.split('-'),y=+p[0],m=+p[1],d=+p[2],w=WD[new Date(Date.UTC(y,m-1,d)).getUTCDay()],len=new Date(Date.UTC(y,m,0)).getUTCDate();
+    c.push(['weekly','Every week on '+w]);
+    if(d<=28)c.push(['monthly-nth','Monthly on the '+ORD[Math.ceil(d/7)-1]+' '+w]);
+    if(d>len-7)c.push(['monthly-last','Monthly on the last '+w]);
+    c.push(['monthly-date','Monthly on day '+d+(d>28?' (skips shorter months)':'')]);
+    return c;
+  }
+  function repeatLabel(ev){var c=choices(ev.date).filter(function(o){return o[0]===ev.repeat})[0];return c?c[1]:''}
+  // Rebuild the dropdown for the chosen date, keeping the choice when it still fits
+  // (a "by weekday" choice switches between "3rd Saturday" and "last Saturday" as needed).
+  function fillRepeat(want){
+    var sel=$('repeat'),c=choices($('date').value),vals=c.map(function(o){return o[0]});
+    if(vals.indexOf(want)<0)want=/^monthly-(nth|last)$/.test(want)?(vals.indexOf('monthly-nth')>=0?'monthly-nth':vals.indexOf('monthly-last')>=0?'monthly-last':'none'):'none';
+    sel.textContent='';
+    c.forEach(function(o){var op=el('option',null,o[1]);op.value=o[0];sel.appendChild(op)});
+    sel.value=want;sel.disabled=c.length<2;
+    $('until').disabled=want==='none';if(want==='none')$('until').value='';
+  }
   function notice(msg){$('notice').textContent=msg||'';$('notice').hidden=!msg}
 
   // Talk to the admin API. If Cloudflare Access sign-in has expired, the request is redirected
@@ -160,10 +184,10 @@ header .links a{margin-left:0}
     var list=$('list');list.textContent='';
     S.events.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0}).forEach(function(ev){
       var li=el('li',isOver(ev)?'past':''),d=el('div'),t=el('div','t',ev.title),b=el('div','b');
-      if(ev.repeat==='weekly')t.appendChild(el('span','tag','Weekly'));
+      if(repeats(ev))t.appendChild(el('span','tag',ev.repeat==='weekly'?'Weekly':'Monthly'));
       if(isOver(ev))t.appendChild(el('span','tag','Past'));
       d.appendChild(t);
-      d.appendChild(el('div','w',(ev.repeat==='weekly'?'From ':'')+dstr(ev.date)+(ev.repeat==='weekly'&&ev.until?' until '+dstr(ev.until):'')+' · '+when(ev)));
+      d.appendChild(el('div','w',(repeats(ev)?repeatLabel(ev)+' · from ':'')+dstr(ev.date)+(repeats(ev)&&ev.until?' until '+dstr(ev.until):'')+' · '+when(ev)));
       var e=el('button','btn ghost sm','Edit');e.type='button';e.addEventListener('click',function(){edit(ev.id)});
       var x=el('button','btn ghost sm','Delete');x.type='button';
       armed(x,'Confirm delete',function(){S.events=S.events.filter(function(o){return o.id!==ev.id});if(S.editing===ev.id)reset();changed()});
@@ -186,22 +210,23 @@ header .links a{margin-left:0}
   }
   function changed(){S.dirty=true;render()}
   function reset(){
-    S.editing=null;$('form').reset();$('until').disabled=true;$('err').textContent='';
+    S.editing=null;$('form').reset();fillRepeat('none');$('err').textContent='';
     $('formTitle').textContent='Add an event';$('save').textContent='Add event';$('cancel').hidden=true;
   }
   function edit(id){
     var ev=S.events.filter(function(o){return o.id===id})[0];if(!ev)return;
     S.editing=id;$('title').value=ev.title;$('date').value=ev.date;$('start').value=ev.start||'';$('end').value=ev.end||'';
-    $('weekly').checked=ev.repeat==='weekly';$('until').disabled=ev.repeat!=='weekly';$('until').value=ev.until||'';$('desc').value=ev.desc||'';
+    fillRepeat(ev.repeat||'none');$('until').value=repeats(ev)?ev.until||'':'';$('desc').value=ev.desc||'';
     $('formTitle').textContent='Edit event';$('save').textContent='Save changes';$('cancel').hidden=false;$('err').textContent='';
     $('title').focus();
   }
-  $('weekly').addEventListener('change',function(){$('until').disabled=!this.checked;if(!this.checked)$('until').value=''});
+  $('date').addEventListener('change',function(){fillRepeat($('repeat').value)});
+  $('repeat').addEventListener('change',function(){fillRepeat(this.value)});
   $('cancel').addEventListener('click',reset);
   $('form').addEventListener('submit',function(e){
     e.preventDefault();
     var ev={title:$('title').value.trim(),date:$('date').value,start:$('start').value,end:$('end').value,
-            repeat:$('weekly').checked?'weekly':'none',until:$('weekly').checked?$('until').value:'',desc:$('desc').value.trim()};
+            repeat:$('repeat').value,until:$('repeat').value!=='none'?$('until').value:'',desc:$('desc').value.trim()};
     var msg=!ev.title?'Give the event a title.':!ev.date?'Pick a date.':(ev.end&&!ev.start)?'Add a start time, or clear the end time.':
             (ev.start&&ev.end&&ev.end<=ev.start)?'The end time must be after the start time.':(ev.until&&ev.until<ev.date)?'“Repeat until” must be on or after the first date.':'';
     $('err').textContent=msg;if(msg)return;
