@@ -686,15 +686,28 @@ footer .small{flex-basis:100%;font-size:.85rem}
     new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()).forEach(function(p){o[p.type]=p.value});
     return{date:o.year+'-'+o.month+'-'+o.day,time:pad(o.hour%24)+':'+o.minute};
   }
+  function mday(r,s,y,m){ // day a monthly event falls on in month m of year y (null if none) - same as src/schema.js
+    var f=new Date(s),day=f.getUTCDate(),w=f.getUTCDay(),len=new Date(Date.UTC(y,m+1,0)).getUTCDate(),k;
+    if(r==='monthly-date')k=day;
+    else if(r==='monthly-last')k=len-(new Date(Date.UTC(y,m,len)).getUTCDay()-w+7)%7;
+    else k=1+(w-new Date(Date.UTC(y,m,1)).getUTCDay()+7)%7+(Math.ceil(day/7)-1)*7;
+    return k<=len?Date.UTC(y,m,k):null;
+  }
   function occ(evs,from,to){ // every occurrence between two dates, inclusive
     var out=[],a=toUTC(from),b=toUTC(to),W=7*DAY;
     evs.forEach(function(ev){
       if(!ev||!isDate(ev.date))return;
-      var s=toUTC(ev.date);
+      var s=toUTC(ev.date),end=isDate(ev.until)?Math.min(b,toUTC(ev.until)):b,t;
       if(ev.repeat==='weekly'){
-        var end=isDate(ev.until)?Math.min(b,toUTC(ev.until)):b,t=s;
+        t=s;
         if(t<a)t+=Math.ceil((a-t)/W)*W;
         for(;t<=end;t+=W)out.push({ev:ev,date:fromUTC(t)});
+      }else if(/^monthly-(date|nth|last)$/.test(ev.repeat)){
+        var f=new Date(Math.max(s,a));
+        for(var y=f.getUTCFullYear(),m=f.getUTCMonth();Date.UTC(y,m,1)<=end;m++){
+          t=mday(ev.repeat,s,y,m);
+          if(t!==null&&t>=s&&t>=a&&t<=end)out.push({ev:ev,date:fromUTC(t)});
+        }
       }else if(s>=a&&s<=b)out.push({ev:ev,date:ev.date});
     });
     return out.sort(function(x,y){var p=x.date+(x.ev.start||''),q=y.date+(y.ev.start||'');return p<q?-1:p>q?1:0});
