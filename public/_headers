@@ -1,0 +1,9 @@
+# Browser caching for static files (Cloudflare reads this file; it is not served).
+# Fonts have their version in the file name, so they can be kept for a year.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Photos are kept for 30 days. To replace a photo, give the new file a new name
+# (e.g. hero-2.webp) and update index.html, or returning visitors may see the old one.
+/img/*
+  Cache-Control: public, max-age=2592000
