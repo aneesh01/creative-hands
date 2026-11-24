@@ -1,4 +1,6 @@
 {
+  // Account: "Creative Hands Ceramics" (fabb4db120f75514a37a7f75648b44e1). ACCESS_AUD values are filled in
+  // once the Access apps exist in that account; until then /admin and staging sign-in are refused.
   "$schema": "node_modules/wrangler/config-schema.json",
 
   // ---- Production: branch `main` -> Worker `creative-hands` -> creativehandsceramics.com
@@ -18,13 +20,13 @@
   },
   "kv_namespaces": [
     // id: Storage & Databases -> KV -> your namespace (not a secret).
-    { "binding": "EVENTS", "id": "df6ed663ddaf462b9f834d05183acdb9" }
+    { "binding": "EVENTS", "id": "97bb1bf53e524765b7ec0fa9bc006f84" }
   ],
   "vars": {
     // Cloudflare Access protects /admin. These let the Worker check the sign-in itself.
     // Not secrets: Zero Trust -> Access -> Applications -> (the admin app) -> "Application Audience (AUD) Tag".
-    "ACCESS_TEAM_DOMAIN": "https://aneesh-aravind.cloudflareaccess.com",
-    "ACCESS_AUD": "b3926f70f2185112fd6bdd134139832bb4837c8896b6dd4c1c96b04c1c724e9b",
+    "ACCESS_TEAM_DOMAIN": "https://creativehands.cloudflareaccess.com",
+    "ACCESS_AUD": "TODO-prod-admin-aud",
     // Google Analytics 4 "Measurement ID" (G-...). Not a secret. Production only, so staging
     // and local testing never count as real visits. Empty = no Google Analytics.
     "GA_MEASUREMENT_ID": "G-1H0Y1PNKNY"
@@ -38,12 +40,12 @@
     "staging": {
       "name": "creative-hands-staging",
       "kv_namespaces": [
-        { "binding": "EVENTS", "id": "9d24e831bf8e4ae9b6d800cdee49032a" }
+        { "binding": "EVENTS", "id": "b0907364960e48a9b8cc731d1c330023" }
       ],
       "vars": {
         // The whole staging site sits behind the Worker's own Access policy.
-        "ACCESS_TEAM_DOMAIN": "https://aneesh-aravind.cloudflareaccess.com",
-        "ACCESS_AUD": "44df9215d8f8b59f4e7fa2211ce9f34b15ee40387f56bb8c182671ac8e0fe2e0",
+        "ACCESS_TEAM_DOMAIN": "https://creativehands.cloudflareaccess.com",
+        "ACCESS_AUD": "TODO-staging-aud",
         // Never send staging visits to Google Analytics.
         "GA_MEASUREMENT_ID": ""
       }
