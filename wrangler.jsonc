@@ -1,6 +1,4 @@
 {
-  // Account: "Creative Hands Ceramics" (fabb4db120f75514a37a7f75648b44e1). ACCESS_AUD values are filled in
-  // once the Access apps exist in that account; until then /admin and staging sign-in are refused.
   "$schema": "node_modules/wrangler/config-schema.json",
 
   // ---- Production: branch `main` -> Worker `creative-hands` -> creativehandsceramics.com
@@ -26,7 +24,7 @@
     // Cloudflare Access protects /admin. These let the Worker check the sign-in itself.
     // Not secrets: Zero Trust -> Access -> Applications -> (the admin app) -> "Application Audience (AUD) Tag".
     "ACCESS_TEAM_DOMAIN": "https://creativehands.cloudflareaccess.com",
-    "ACCESS_AUD": "TODO-prod-admin-aud",
+    "ACCESS_AUD": "cbae5f6770d004249337c0671637b189c49a84de8faa583f2dc55a46c982c74a",
     // Google Analytics 4 "Measurement ID" (G-...). Not a secret. Production only, so staging
     // and local testing never count as real visits. Empty = no Google Analytics.
     "GA_MEASUREMENT_ID": "G-1H0Y1PNKNY"
@@ -45,7 +43,7 @@
       "vars": {
         // The whole staging site sits behind the Worker's own Access policy.
         "ACCESS_TEAM_DOMAIN": "https://creativehands.cloudflareaccess.com",
-        "ACCESS_AUD": "TODO-staging-aud",
+        "ACCESS_AUD": "8999b0b6ddb4fc0251801c6957ad65cbd9adca889da5c52122100fb57179c221",
         // Never send staging visits to Google Analytics.
         "GA_MEASUREMENT_ID": ""
       }
